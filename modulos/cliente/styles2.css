@@ -1,0 +1,19 @@
+
+h1{
+    font-family: Copperplate;
+    font-size: 40px;
+    text-align: center;
+    margin-top: 55px;
+}
+.hover-item {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-item:hover {
+    transform: scale(1.05);
+    box-shadow: 0px 5px 15px rgba(0,0,0,0.1);
+}
+a {
+    text-decoration: none;
+    color: black; /* O el color que prefieras */
+}

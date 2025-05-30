@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard de Estadísticas</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f9;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 15px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    canvas {
+      margin: 20px 0;
+    }
+    @media (min-width: 768px) {
+      .chart-container {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+      }
+    }
+    @media (min-width: 1200px) {
+      .chart-container {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    .filters {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .filters label {
+      font-weight: bold;
+      margin-right: 5px;
+    }
+
+    .filters input[type="date"],
+    .filters input[type="number"] {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    .filters button {
+      padding: 8px 15px;
+      background-color: #4e73df;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .filters button:hover {
+      background-color: #2e59d9;
+    }
+
+    .kpi-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    .kpi-card h3 {
+      margin-top: 0;
+      color: #666;
+      font-size: 1rem;
+    }
+
+    .kpi-value {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .spinner {
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .info-tooltip {
+      background: #4e73df;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      cursor: help;
+      margin-left: 5px;
+    }
+
+    [data-tooltip] {
+      position: relative;
+    }
+
+    [data-tooltip]:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      z-index: 10;
+    }
+
+    /* Mejorar la responsividad */
+    .chart-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 10px;
+    }
+
+    @media (min-width: 768px) {
+      .chart-container {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-around;
+      }
+    }
+
+    /* Tema oscuro */
+    body.dark-mode {
+      background-color: #121212;
+      color: #ffffff;
+    }
+
+    body.dark-mode .container {
+      background-color: #1e1e1e;
+      box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1);
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      border-radius: 5px;
+      color: #fff;
+      z-index: 1000;
+    }
+
+    .notification.error {
+      background-color: #e74c3c;
+    }
+
+    .notification.success {
+      background-color: #2ecc71;
+    }
+  </style>
+</head>
+<body>
+  <button class="theme-toggle" onclick="toggleTheme()">Toggle Dark Mode</button>
+  <div class="container">
+    <h1>Dashboard de Estadísticas</h1>
+    <!-- Time Range Selector -->
+    <div class="filters">
+        <div>
+            <label for="timeRange">Rango:</label>
+            <select id="timeRange">
+                <option value="today">Hoy</option>
+                <option value="yesterday">Ayer</option>
+                <option value="week">Esta semana</option>
+                <option value="month">Este mes</option>
+                <option value="custom">Personalizado</option>
+            </select>
+        </div>
+        <div id="customDateRange" style="display:none;">
+            <label for="startDate">Desde:</label>
+            <input type="date" id="startDate">
+            <label for="endDate">Hasta:</label>
+            <input type="date" id="endDate">
+        </div>
+        <button id="filterButton">Filtrar</button>
+        <!-- Export Data Button -->
+        <button id="exportButton" class="btn btn-secondary">Exportar Datos</button>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading" style="display: none; text-align: center; padding: 20px;">
+        <div class="spinner"></div>
+        <p>Cargando datos...</p>
+    </div>
+
+    <div class="kpi-container">
+      <div class="kpi-card">
+        <h3>Total Pedidos</h3>
+        <div class="kpi-value" id="totalPedidos">0</div>
+      </div>
+      <div class="kpi-card">
+        <h3>Ingresos Totales</h3>
+        <div class="kpi-value" id="ingresosTotales">Q0</div>
+      </div>
+      <div class="kpi-card">
+        <h3>Ticket Promedio</h3>
+        <div class="kpi-value" id="ticketPromedio">Q0</div>
+      </div>
+    </div>
+
+    <div class="chart-container" id="chartContainer">
+      <canvas id="pedidosPorDia"></canvas>
+      <canvas id="productoMasVendido"></canvas>
+      <canvas id="estadoPedidos"></canvas>
+      <button class="info-tooltip" data-tooltip="Esta gráfica muestra la distribución de pedidos por estado">?</button>
+      <canvas id="ingresosPorDia"></canvas>
+      <canvas id="pedidosPorMesa"></canvas>
+      <canvas id="pedidosPorHora"></canvas>
+      <!-- Doughnut chart for sales by product category -->
+      <canvas id="ventasPorCategoria"></canvas>
+    </div>
+    <div id="promedioPedidos" style="text-align: center; font-size: 1.2rem; margin-top: 20px;"></div>
+  </div>
+
+  <script>
+    // Global object to store chart instances
+    let charts = {};
+
+    // Alternar tema oscuro
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode');
+    }
+
+    // Exportar gráfica como imagen
+    function exportChart(chartId) {
+        const canvas = document.getElementById(chartId);
+        const link = document.createElement('a');
+        link.href = canvas.toDataURL('image/png');
+        link.download = `${chartId}.png`;
+        link.click();
+    }
+
+    // Mostrar indicador de carga
+    function showLoading(chartId) {
+        const canvas = document.getElementById(chartId);
+        const ctx = canvas.getContext('2d');
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Cargando...', canvas.width / 2, canvas.height / 2);
+    }
+
+    // Configuración de zoom y desplazamiento
+    const zoomOptions = {
+        pan: {
+            enabled: true,
+            mode: 'x',
+        },
+        zoom: {
+            wheel: {
+                enabled: true,
+            },
+            pinch: {
+                enabled: true,
+            },
+            mode: 'x',
+        },
+    };
+
+    // Aplicar zoom a las gráficas
+    function applyZoom(chart) {
+        chart.options.plugins.zoom = zoomOptions;
+        chart.update();
+    }
+
+    // Ajustar las posiciones de las gráficas en una sola columna
+    const container = document.getElementById('chartContainer');
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.alignItems = 'center';
+    container.style.gap = '20px';
+
+    // Mejorar la calidad de las gráficas ajustando la resolución
+    const canvasElements = document.querySelectorAll('canvas');
+    canvasElements.forEach(canvas => {
+        const context = canvas.getContext('2d');
+        const scale = window.devicePixelRatio || 1;
+        canvas.width = canvas.offsetWidth * scale;
+        canvas.height = canvas.offsetHeight * scale;
+        context.scale(scale, scale);
+    });
+
+    // Manejo de datos indefinidos
+    function updateCharts(data) {
+        // Depuración: Verificar los datos antes de actualizar las gráficas
+        console.log('Actualizando gráficas con los datos:', data);
+
+        // Depuración: Verificar datos antes de crear cada gráfica
+        console.log('Datos para Pedidos por Día:', data.pedidosPorDia);
+        console.log('Datos para Estado de Pedidos:', data.estadoPedidos);
+        console.log('Datos para Ingresos por Día:', data.ingresosPorDia);
+        console.log('Datos para Pedidos por Mesa:', data.pedidosPorMesa);
+        console.log('Datos para Pedidos por Hora:', data.pedidosPorHora);
+
+        // Validar datos antes de crear las gráficas
+        if (!Array.isArray(data.pedidosPorDia) || data.pedidosPorDia.length === 0) {
+            console.warn('No hay datos válidos para Pedidos por Día');
+        }
+        if (!Array.isArray(data.estadoPedidos) || data.estadoPedidos.length === 0) {
+            console.warn('No hay datos válidos para Estado de Pedidos');
+        }
+        if (!Array.isArray(data.ingresosPorDia) || data.ingresosPorDia.length === 0) {
+            console.warn('No hay datos válidos para Ingresos por Día');
+        }
+        if (!Array.isArray(data.pedidosPorMesa) || data.pedidosPorMesa.length === 0) {
+            console.warn('No hay datos válidos para Pedidos por Mesa');
+        }
+        if (!Array.isArray(data.pedidosPorHora) || data.pedidosPorHora.length === 0) {
+            console.warn('No hay datos válidos para Pedidos por Hora');
+        }
+
+        // Verificar la existencia de los elementos canvas antes de crear las gráficas
+        const canvasIds = ['pedidosPorDia', 'estadoPedidos', 'ingresosPorDia', 'pedidosPorMesa', 'pedidosPorHora'];
+        for (const id of canvasIds) {
+            const canvas = document.getElementById(id);
+            if (!canvas) {
+                console.error(`El elemento canvas con id '${id}' no existe en el DOM.`);
+                return;
+            }
+        }
+
+        // Destruir gráficas existentes antes de crear nuevas
+        for (const key in charts) {
+            if (charts[key]) {
+                charts[key].destroy();
+            }
+        }
+
+        // Crear gráfica de Pedidos por Día
+        if (data.pedidosPorDia && data.pedidosPorDia.length > 0) {
+            charts.pedidosPorDia = new Chart(document.getElementById('pedidosPorDia').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: data.pedidosPorDia.map(item => item.dia),
+                    datasets: [{
+                        label: 'Pedidos por Día',
+                        data: data.pedidosPorDia.map(item => item.total),
+                        borderColor: '#36A2EB',
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true
+                        },
+                        title: {
+                            display: true,
+                            text: 'Pedidos por Día'
+                        },
+                        zoom: zoomOptions
+                    }
+                }
+            });
+        } else {
+            const ctx = document.getElementById('pedidosPorDia').getContext('2d');
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No hay datos disponibles para Pedidos por Día', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        }
+
+        // Repetir lógica para otras gráficas (Estado de Pedidos, Ingresos por Día, etc.)
+        if (data.estadoPedidos && data.estadoPedidos.length > 0) {
+            charts.estadoPedidos = new Chart(document.getElementById('estadoPedidos').getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: data.estadoPedidos.map(item => item.estado),
+                    datasets: [{
+                        data: data.estadoPedidos.map(item => item.cantidad),
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Estado de Pedidos'
+                        },
+                        zoom: zoomOptions
+                    }
+                }
+            });
+        } else {
+            const ctx = document.getElementById('estadoPedidos').getContext('2d');
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No hay datos disponibles para Estado de Pedidos', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        }
+
+        // Crear gráfica de Ingresos por Día
+        if (data.ingresosPorDia && data.ingresosPorDia.length > 0) {
+            charts.ingresosPorDia = new Chart(document.getElementById('ingresosPorDia').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: data.ingresosPorDia.map(item => item.dia),
+                    datasets: [{
+                        label: 'Ingresos por Día',
+                        data: data.ingresosPorDia.map(item => item.ingresos),
+                        backgroundColor: '#4CAF50'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true
+                        },
+                        title: {
+                            display: true,
+                            text: 'Ingresos por Día'
+                        },
+                        zoom: zoomOptions
+                    }
+                }
+            });
+        } else {
+            const ctx = document.getElementById('ingresosPorDia').getContext('2d');
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No hay datos disponibles para Ingresos por Día', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        }
+
+        // Crear gráfica de Pedidos por Mesa
+        if (data.pedidosPorMesa && data.pedidosPorMesa.length > 0) {
+            charts.pedidosPorMesa = new Chart(document.getElementById('pedidosPorMesa').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: data.pedidosPorMesa.map(item => `Mesa ${item.mesa}`),
+                    datasets: [{
+                        data: data.pedidosPorMesa.map(item => item.cantidad),
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4CAF50']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Pedidos por Mesa'
+                        },
+                        zoom: zoomOptions
+                    }
+                }
+            });
+        } else {
+            const ctx = document.getElementById('pedidosPorMesa').getContext('2d');
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No hay datos disponibles para Pedidos por Mesa', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        }
+
+        // Crear gráfica de Pedidos por Hora
+        if (data.pedidosPorHora && data.pedidosPorHora.length > 0) {
+            charts.pedidosPorHora = new Chart(document.getElementById('pedidosPorHora').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: data.pedidosPorHora.map(item => `${item.hora}:00`),
+                    datasets: [{
+                        label: 'Pedidos por Hora',
+                        data: data.pedidosPorHora.map(item => item.total),
+                        backgroundColor: '#FF9800'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true
+                        },
+                        title: {
+                            display: true,
+                            text: 'Pedidos por Hora'
+                        },
+                        zoom: zoomOptions
+                    }
+                }
+            });
+        } else {
+            const ctx = document.getElementById('pedidosPorHora').getContext('2d');
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No hay datos disponibles para Pedidos por Hora', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        }
+    }
+
+    // Actualizar los valores de Total Pedidos, Ingresos Totales y Ticket Promedio
+    function updateKPIs(data) {
+        document.getElementById('totalPedidos').textContent = data.totalPedidos || 0;
+        document.getElementById('ingresosTotales').textContent = data.ingresosTotales || 'Q0.00';
+        document.getElementById('ticketPromedio').textContent = data.ticketPromedio || 'Q0.00';
+    }
+
+    async function fetchData() {
+        document.getElementById('loading').style.display = 'block';
+        try {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            const response = await fetch(`get_dashboard_data.php?startDate=${startDate}&endDate=${endDate}`);
+            const data = await response.json();
+
+            if (!data) {
+                console.error('No se recibieron datos del servidor');
+                return;
+            }
+
+            updateKPIs(data); // Actualizar los KPIs
+            updateCharts(data); // Actualizar las gráficas
+        } catch (error) {
+            console.error('Error al obtener los datos:', error);
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    async function fetchDataInitial() {
+        document.getElementById('loading').style.display = 'block';
+        try {
+            const response = await fetch('get_dashboard_data.php');
+            const data = await response.json();
+
+            if (!data) {
+                console.error('No se recibieron datos del servidor');
+                return;
+            }
+
+            updateKPIs(data); // Actualizar los KPIs
+            updateCharts(data); // Actualizar las gráficas
+        } catch (error) {
+            console.error('Error al obtener los datos iniciales:', error);
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    // Update the event listener for the filter button
+    document.getElementById('filterButton').addEventListener('click', fetchData);
+
+    document.getElementById('timeRange').addEventListener('change', function() {
+        const customRange = document.getElementById('customDateRange');
+        customRange.style.display = this.value === 'custom' ? 'block' : 'none';
+
+        if (this.value !== 'custom') {
+            const today = new Date();
+            let startDate, endDate = formatDate(today);
+
+            switch(this.value) {
+                case 'today':
+                    startDate = endDate;
+                    break;
+                case 'yesterday':
+                    const yesterday = new Date(today);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    startDate = endDate = formatDate(yesterday);
+                    break;
+                case 'week':
+                    const firstDay = new Date(today);
+                    firstDay.setDate(firstDay.getDate() - firstDay.getDay());
+                    startDate = formatDate(firstDay);
+                    break;
+                case 'month':
+                    startDate = formatDate(new Date(today.getFullYear(), today.getMonth(), 1));
+                    break;
+            }
+
+            document.getElementById('startDate').value = startDate;
+            document.getElementById('endDate').value = endDate;
+        }
+    });
+
+    function formatDate(date) {
+        return date.toISOString().split('T')[0];
+    }
+
+    fetchDataInitial();
+
+    document.getElementById('exportButton').addEventListener('click', function() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "datos_dashboard.json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    });
+
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerText = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+body { 
+    background: #f7f7f7;
+}
+h1{
+    font-family: Copperplate;
+    font-size: 40px;
+}
+h2{
+    font-family: Copperplate;
+    font-size: 45px;
+    color: #333;
+}
+h3{
+    font-family: Perpetua;
+    font-size: 32px;
+}
+h4{
+    font-family:Lucida Bright ;
+    font-size: 28px;
+}
+p{
+    font-family:Garamond ;
+    font-size: 20px;
+}
+strong{
+    font-size: 19px;
+}
+.container {
+    max-width: 750px; 
+    margin: auto; 
+    padding: 20px; 
+}
+.option { 
+    padding: 20px; 
+    background: #f8f8f8; 
+    border-radius: 10px; 
+    text-align: center;
+    cursor: pointer; 
+    transition: transform 0.3s ease, background-color 0.3s ease;
+}
+.option:hover {
+    transform: translateY(-5px); 
+    background-color: #ffeb3b;
+}
+
+.banner-container { 
+    margin: 20px 0; 
+}
+.owl-carousel img { 
+    width: 100%; 
+    border-radius: 10px;
+    box-shadow: 0px 10px 20px rgba(0,0,0,0.1);
+}
+
+.footer { 
+    position: fixed;
+    bottom: 0;
+    width: 100%; 
+    background: #fff;
+    padding: 10px; 
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+}
+
+.list-group-item {
+    text-align: center;
+    padding: 20px;
+}
+
+.img-center {
+    display: block;
+    margin: 0 auto;
+    max-width: 300%;
+    border-radius: 10px;
+    flex-shrink: 0;
+    
+}
+
+.hover-item {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-item:hover {
+    transform: scale(1.05);
+    box-shadow: 0px 5px 15px rgba(0,0,0,0.1);
+}
+a {
+    text-decoration: none;
+    color: black; /* O el color que prefieras */
+}
